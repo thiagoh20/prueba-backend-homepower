@@ -1,0 +1,16 @@
+version = 0.1
+
+[default.deploy.parameters]
+stack_name = "technical-test"
+resolve_s3 = true
+s3_prefix = "technical-test"
+region = "us-east-1"
+capabilities = "CAPABILITY_IAM"
+image_repositories = []
+parameter_overrides = [
+    "DBHost=my-db-productos.c4h62euy0hou.us-east-1.rds.amazonaws.com",
+    "DBPort=5432",
+    "DBUsername=thiago",
+    "DBPassword=mypassword",
+    "DBName=my-db-productos"
+]

@@ -1,0 +1,82 @@
+AWSTemplateFormatVersion: 2010-09-09
+Transform: AWS::Serverless-2016-10-31
+Description: Serverless for technical test
+
+Parameters:
+  DBHost:
+    Type: String
+    Description: Database host for the Productos API
+
+  DBPort:
+    Type: Number
+
+  DBUsername:
+    Type: String
+    Description: Database username for the Productos API
+
+  DBPassword:
+    Type: String
+    NoEcho: true
+    Description: Database password for the Productos API
+
+  DBName:
+    Type: String
+    Description: Database name for the Productos API
+
+Globals:
+  Api:
+    Cors:
+      AllowMethods: "'GET,POST,PUT,DELETE,OPTIONS'"
+      AllowHeaders: "'*'"
+      AllowOrigin: "'*'"
+
+Resources:
+  AppApi:
+    Type: AWS::Serverless::HttpApi
+    Properties:
+      Name: HomePowerAPI
+      Description: HTTP API Gateway for HomePower
+      StageName: Prod
+
+  ProductsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: .
+      Handler: lambda.handler
+      Runtime: nodejs20.x
+      MemorySize: 512
+      Timeout: 10
+      Environment:
+        Variables:
+          DB_HOST: !Ref DBHost
+          DB_PORT: !Ref DBPort
+          DB_USERNAME: !Ref DBUsername
+          DB_PASSWORD: !Ref DBPassword
+          DB_NAME: !Ref DBName
+      Events:
+        ProductosRoute:
+          Type: HttpApi
+          Properties:
+            Path: /productos
+            Method: ANY
+            ApiId: !Ref AppApi
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Minify: true
+        Target: "es2020"
+        Sourcemap: true
+        EntryPoints:
+          - lambda.ts
+        External:
+          - pg-hstore
+          - '@nestjs/websockets'
+          - '@nestjs/websockets/socket-module'
+          - '@nestjs/microservices'
+          - '@nestjs/microservices/microservices-module'
+
+
+Outputs:
+  AppApiEndpoint:
+    Description: API Endpoint
+    Value: !Sub "https://${AppApi}.execute-api.${AWS::Region}.amazonaws.com/Prod"
