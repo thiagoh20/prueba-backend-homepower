@@ -1,6 +1,6 @@
 # API de Productos - NestJS
 
-Una API RESTful completa para la gestión de productos desarrollada con NestJS, TypeORM y PostgreSQL.
+Una API RESTful completa para la gestión de productos, desarrollada con NestJS, TypeORM y PostgreSQL. Puede ejecutarse como servicio tradicional o como función serverless (AWS Lambda + API Gateway).
 
 ## 🚀 Características
 
@@ -8,6 +8,7 @@ Una API RESTful completa para la gestión de productos desarrollada con NestJS, 
 - **Validaciones robustas** con DTOs y class-validator
 - **Manejo de excepciones** personalizado
 - **Base de datos PostgreSQL** con TypeORM
+- **Despliegue como función Lambda** con AWS API Gateway
 - **Configuración con variables de entorno**
 - **Pruebas unitarias** con Jest
 - **Logging** de requests y responses
@@ -17,16 +18,19 @@ Una API RESTful completa para la gestión de productos desarrollada con NestJS, 
 ## 📋 Requisitos
 
 - Node.js (v18 o superior)
-- npm o yarn
+- npm 
 - Docker y Docker Compose
 - PostgreSQL (via Docker)
+- AWS CLI (para despliegue o prueba de funciones Lambda)
+- AWS SAM CLI (para ejecutar la Lambda localmente)
+- 
 
 ## 🛠️ Instalación
 
 ### 1. Clonar el repositorio
 ```bash
 git clone 
-cd productos-api
+cd prueba-backend-homepower
 ```
 
 ### 2. Instalar dependencias
@@ -66,6 +70,48 @@ npm run start:dev
 npm run build
 npm run start:prod
 ```
+ ## ⚙️ Ejecutar Lambda Localmente con AWS SAM
+
+Esta API puede ser desplegada y probada localmente como una función Lambda utilizando [AWS SAM CLI](https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/install-sam-cli.html).
+
+### 📦 Requisitos
+
+- AWS CLI configurado (`aws configure`)
+- [SAM CLI instalado](https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/install-sam-cli.html)
+- Docker (para emular el entorno Lambda)
+
+### 1. Clonar el repositorio
+```bash
+git clone 
+cd prueba-backend-homepower
+```
+
+### 2. Instalar dependencias
+```bash
+npm install
+```
+### 3. esbuild global
+```bash
+npm install -g esbuild
+```
+### 4. Build SAM aplicacion
+```bash
+sam build
+```
+### 5. Build SAM aplicacion y ejecucion local
+```bash
+sam build && sam local start-api   
+
+sam build && sam local start-api --port 3001
+```
+## 🔗 Endpoints de la API por medio de lambda local
+
+### Base URL Lambda
+```
+ http://127.0.0.1:3000/productos
+ ```
+
+
 
 ## 🗄️ Estructura de la Base de Datos
 
@@ -83,7 +129,7 @@ npm run start:prod
 
 ## 🔗 Endpoints de la API
 
-### Base URL
+### Base URL local
 ```
 http://localhost:3000
 ```
@@ -407,32 +453,6 @@ docker-compose down
 docker-compose logs postgres
 ```
 
-## 📁 Estructura del Proyecto
-
-```
-src/
-├── common/
-│   ├── filters/
-│   │   └── http-exception.filter.ts
-│   └── interceptors/
-│       └── logging.interceptor.ts
-├── productos/
-│   ├── dto/
-│   │   ├── create-producto.dto.ts
-│   │   ├── update-producto.dto.ts
-│   │   └── index.ts
-│   ├── entities/
-│   │   └── producto.entity.ts
-│   ├── productos.controller.ts
-│   ├── productos.controller.spec.ts
-│   ├── productos.service.ts
-│   ├── productos.service.spec.ts
-│   └── productos.module.ts
-├── app.controller.ts
-├── app.module.ts
-├── app.service.ts
-└── main.ts
-```
 
 ## 🛡️ Seguridad y Buenas Prácticas
 
@@ -453,21 +473,180 @@ src/
 - **Migraciones** automáticas en desarrollo
 - **Conexión segura** con variables de entorno
 - **Validación de UUID** en parámetros
+## 🧩 Configuración de AWS Lambda y API Gateway (`template.yaml`)
 
-### Variables de entorno para debugging
-```env
-NODE_ENV=development  # Habilita logging detallado y sincronización de DB
+El despliegue de esta API en AWS se realiza como una función **Lambda** conectada a un **API Gateway HTTP** utilizando **AWS SAM**.
+
+### 📄 Estructura del archivo `template.yaml`
+
+```yaml
+AWSTemplateFormatVersion: 2010-09-09
+Transform: AWS::Serverless-2016-10-31
+Description: Serverless for technical 
+
+Parameters:
+  DBHost:
+    Type: String
+    Description: Database host for the Productos API
+
+  DBPort:
+    Type: Number
+
+  DBUsername:
+    Type: String
+    Description: Database username for the Productos API
+
+  DBPassword:
+    Type: String
+    NoEcho: true
+    Description: Database password for the Productos API
+
+  DBName:
+    Type: String
+    Description: Database name for the Productos API
+
+Globals:
+  Api:
+    Cors:
+      AllowMethods: "'GET,POST,PUT,DELETE,OPTIONS'"
+      AllowHeaders: "'*'"
+      AllowOrigin: "'*'"
+
+Resources:
+  AppApi:
+    Type: AWS::Serverless::HttpApi
+    Properties:
+      Name: HomePowerAPI
+      Description: HTTP API Gateway for HomePower
+      StageName: Prod
+
+  ProductsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: .
+      Handler: lambda.handler
+      Runtime: nodejs20.x
+      MemorySize: 512
+      Timeout: 10
+      Environment:
+        Variables:
+          DB_HOST: !Ref DBHost
+          DB_PORT: !Ref DBPort
+          DB_USERNAME: !Ref DBUsername
+          DB_PASSWORD: !Ref DBPassword
+          DB_NAME: !Ref DBName
+      Events:
+        ProductosRoute:
+          Type: HttpApi
+          Properties:
+            Path: /productos
+            Method: ANY
+            ApiId: !Ref AppApi
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Minify: true
+        Target: "es2020"
+        Sourcemap: true
+        EntryPoints:
+          - lambda.ts
+        External:
+          - pg-hstore
+          - '@nestjs/websockets'
+          - '@nestjs/websockets/socket-module'
+          - '@nestjs/microservices'
+          - '@nestjs/microservices/microservices-module'
+
+Outputs:
+  AppApiEndpoint:
+    Description: API Endpoint
+    Value: !Sub "https://${AppApi}.execute-api.${AWS::Region}.amazonaws.com/Prod"
+``` 
+## 🚀 Despliegue Automático con GitHub Actions + AWS SAM
+
+Esta API se despliega automáticamente en AWS como una función Lambda integrada con API Gateway utilizando GitHub Actions.
+
+### ⚙️ Flujo de Despliegue
+
+
+Ubicado en `.github/workflows/deploy.yml`
+
+Cada vez que haces push a la rama `main` , se ejecuta un workflow que:
+
+1. Compila el proyecto
+2. Empaqueta la aplicación con AWS SAM
+3. Despliega la Lambda con `sam deploy`
+
+### 🧾 Configuración Github Actions
+
+Este archivo contiene las configuraciones necesarias para el entorno de producción (nombre de stack, región, etc.).
+
+### 🔐 Secretos necesarios en GitHub
+
+Debes definir los siguientes secretos en tu repositorio de GitHub (`Settings > Secrets and variables > Actions`):
+
+- `AWS_ACCESS_KEY_ID`
+- `AWS_SECRET_ACCESS_KEY`
+
+### 🛠️ Ejemplo de paso en GitHub Actions
+
+```yaml
+
+- name: Desplegar con SAM
+  run: sam deploy --config-file samconfig.toml --no-confirm-changeset --no-fail-on-empty-changeset
+  env:
+    AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+    AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+    AWS_DEFAULT_REGION: us-east-1
+```
+## ✅ Integración Continua: Pruebas Unitarias con GitHub Actions
+
+Este proyecto utiliza **GitHub Actions** para ejecutar automáticamente las pruebas unitarias en cada push o pull request hacia cualquier rama (`branches: [ "**" ]`).
+
+### 🔍 Workflow de Pruebas
+
+Ubicado en `.github/workflows/run_tests.yml`
+
+### 📦 ¿Qué hace este workflow?
+
+1. **Clona el repositorio**
+2. **Instala Node.js v22**
+3. **Instala las dependencias del proyecto**
+4. **Ejecuta los tests con Jest**
+
+### 🧪 Script del workflow (`run_tests.yml`)
+
+```yaml
+name: Run Tests
+
+on:
+  push:
+    branches: [ "**" ]
+  pull_request:
+    branches: [ "**" ]
+
+jobs:
+  test:
+    name: Run Unit Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '22'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Run tests
+        run: npm test
 ```
 
-## 🚀 Despliegue
-
-### Preparación para producción
-1. Configurar variables de entorno de producción
-2. Compilar el proyecto: `npm run build`
-3. Configurar base de datos PostgreSQL
-4. Ejecutar: `npm run start:prod`
-
-### Variables de entorno de producción
+### Variables de entorno
 ```env
 NODE_ENV=production
 DB_HOST=<production-db-host>
@@ -477,15 +656,6 @@ DB_PASSWORD=<production-password>
 DB_NAME=<production-database>
 PORT=3000
 ```
-
-## 🤝 Contribución
-
-1. Fork el proyecto
-2. Crear una rama para la feature (`git checkout -b feature/AmazingFeature`)
-3. Commit los cambios (`git commit -m 'Add some AmazingFeature'`)
-4. Push a la rama (`git push origin feature/AmazingFeature`)
-5. Abrir un Pull Request
-
 ## 👥 Autores
 
 - **Santiago hernandez** - *Desarrollador Back end* - [TuGitHub](https://github.com/thiagoh20)

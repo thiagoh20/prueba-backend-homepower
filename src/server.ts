@@ -28,5 +28,5 @@ export const createNestServer = async () => {
   });
 
   await app.init();
-  return app.getHttpAdapter().getInstance(); // <== retorna el handler tipo express
+  return app.getHttpAdapter().getInstance(); 
 };

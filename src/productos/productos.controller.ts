@@ -31,12 +31,10 @@ export class ProductosController {
     @Query('minPrice') minPrice?: string,
     @Query('maxPrice') maxPrice?: string,
   ): Promise<Producto[]> {
-    // Si se proporciona un nombre, buscar por nombre
     if (nombre) {
       return await this.productosService.findByName(nombre);
     }
 
-    // Si se proporcionan rangos de precio, buscar por rango
     if (minPrice && maxPrice) {
       const min = parseFloat(minPrice);
       const max = parseFloat(maxPrice);
@@ -48,7 +46,6 @@ export class ProductosController {
       return await this.productosService.findByPriceRange(min, max);
     }
 
-    // Por defecto, devolver todos los productos
     return await this.productosService.findAll();
   }
 

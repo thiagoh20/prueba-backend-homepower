@@ -7,13 +7,11 @@ import { ProductosModule } from './productos/productos.module';
 
 @Module({
   imports: [
-    // Carga automática de variables de entorno (.env en local, process.env en Lambda)
     ConfigModule.forRoot({
       isGlobal: true,
-      envFilePath: '.env', // útil en desarrollo
+      envFilePath: '.env', 
     }),
 
-    // Configuración de TypeORM usando variables del entorno
     TypeOrmModule.forRootAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
@@ -33,7 +31,6 @@ import { ProductosModule } from './productos/productos.module';
       },
     }),
 
-    // Módulo de productos
     ProductosModule,
   ],
 
