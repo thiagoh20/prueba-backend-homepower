@@ -15,25 +15,25 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repository
+      - name: Checkout code
         uses: actions/checkout@v3
 
       - name: Set up Node.js
         uses: actions/setup-node@v3
         with:
-          node-version: '20'
+          node-version: 22
 
-      - name: Install dependencies
-        run: npm install
+      - name: Set up Python (for pip)
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.x'
 
       - name: Install AWS SAM CLI
-        uses: aws-actions/setup-sam@v2
+        run: pip install aws-sam-cli
 
-      - name: Set up AWS credentials
-        uses: aws-actions/configure-aws-credentials@v2
-        with:
-          role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
-          aws-region: us-east-1
+      - name: Install dependencies
+        working-directory: ./payments
+        run: npm install
 
       - name: Install esbuild globally
         run: npm install -g esbuild
@@ -41,17 +41,9 @@ jobs:
       - name: Build SAM application
         run: sam build
 
-      - name: Deploy SAM application
-        run: |
-          sam deploy \
-            --stack-name productos-api \
-            --capabilities CAPABILITY_IAM \
-            --region us-east-1 \
-            --parameter-overrides \
-              DBHost=${{ secrets.DB_HOST }} \
-              DBPort=${{ secrets.DB_PORT }} \
-              DBUsername=${{ secrets.DB_USERNAME }} \
-              DBPassword=${{ secrets.DB_PASSWORD }} \
-              DBName=${{ secrets.DB_NAME }} \
-            --no-confirm-changeset \
-            --no-fail-on-empty-changeset
+      - name: Desplegar con SAM
+        run: sam deploy --config-file samconfig.toml --no-confirm-changeset --no-fail-on-empty-changeset
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_DEFAULT_REGION: us-east-1
